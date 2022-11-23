@@ -4,7 +4,7 @@ namespace Coals_WebApp.Models
 {
     public class AppDbContext : DbContext
     {
-        private static AppDbContext dbContext;
+        private static AppDbContext? dbContext;
         public DbSet<Users> users { get; set; }
         public DbSet<Articles> articles { get; set; }
         public DbSet<Comments> comments { get; set; }

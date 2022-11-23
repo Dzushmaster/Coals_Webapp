@@ -4,7 +4,7 @@
     {
         public uint IdArticle { get; set; }
         public uint IdUser { get; set; }
-        public string TextComment { get; set; }
-        public DateTime DatetimePublish { get; set; }
+        public string? TextComment { get; set; }
+        public string? DatePublish { get; set; }
     }
 }

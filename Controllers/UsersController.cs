@@ -1,8 +1,7 @@
 ﻿using Coals_WebApp.Models;
 using Coals_WebApp.Models.DTO;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Net;
 
 namespace Coals_WebApp.Controllers
 {
@@ -13,7 +12,7 @@ namespace Coals_WebApp.Controllers
         [Route("Register")]
         public IActionResult RegisterUserController([FromBody]RegisterDto candidate)
         {
-            if (Users.CheckEmpty(candidate))
+            if (Users.CheckIsEmpty(candidate))
                 return Content("Not all fields are filled");
             if (!Users.RegisterUser(candidate))
                 return Content("Invalid values of email or nickname");
@@ -23,16 +22,20 @@ namespace Coals_WebApp.Controllers
         [Route("Login")]
         public IActionResult LoginUserController([FromBody] LoginDto candidate)
         {
-            if (Users.CheckEmpty(candidate))
+            if (Users.CheckIsEmpty(candidate))
                 return Content("Not all fields are filled");
-            Roles result = Users.LoginUser(candidate);
-            if (result == Roles.Unauthorized)
-                return Content("Invalid email or password");
-            if (result == Roles.Blocked)
-                return Content("You're blocked, try again later");
-            return Ok();
+            var result = Users.LoginUser(candidate);
+            if (result[0] == Roles.Unauthorized)
+                return Unauthorized("Invalid email or password");
+            if (result[0] == Roles.Blocked)
+                return Unauthorized("You're blocked, try again later");//перенести проверки в users и возвращать просто json с содержимым
+            return Json(new {
+                access_token = result[0],
+                username = result[1]
+            });
         }
         [HttpGet]
+        [Authorize(Roles = $"{Roles.Authorized}, {Roles.Moderator}")]
         [Route("Logout")]
         public IActionResult LogoutUserController([FromQuery] int id = -1)
         {
@@ -43,6 +46,7 @@ namespace Coals_WebApp.Controllers
             return Ok();
         }
         [HttpDelete]
+        [Authorize(Roles = Roles.Moderator)]
         [Route("Moder/Block")]
         public IActionResult BlockUserController([FromQuery] int userId = -1, int moderatorId = -1)
         {
@@ -52,9 +56,10 @@ namespace Coals_WebApp.Controllers
                 return Content("Can't block yourself");
             if (!Users.BlockUser(userId, moderatorId))
                 return Content("Cant' block this user");
-            return Ok();
+            return new EmptyResult();
         }
         [HttpGet]
+        [Authorize(Roles = Roles.Moderator)]
         [Route("Moder/Unblock")]
         public IActionResult UnblockUserController([FromQuery] int userId = -1, int moderatorId = -1)
         {
@@ -64,7 +69,7 @@ namespace Coals_WebApp.Controllers
                 return Content("Can't unblock yourself");
             if (!Users.UnblockUser(userId, moderatorId))
                 return Content("Cant' unblock this user");
-            return Ok();
+            return new EmptyResult();
         }
     }
 }

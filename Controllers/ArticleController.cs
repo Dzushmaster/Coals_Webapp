@@ -5,30 +5,37 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Coals_WebApp.Controllers
 {
-    //All of this can be used by authorized user, moderator and admin
-    [Route("Comments")]
-    public class CommentsController : Controller
+    [Route("Articles")]
+    public class ArticleController : Controller
     {
         [HttpGet]
-        public IActionResult GetComments([FromQuery]int idArticle = 0, int n = 0, int offset = 0)
+        public IActionResult GetArticles([FromQuery]int n = 0, int offset = 0)
         {
-            if (idArticle <= 0 || n <= 0 || offset < 0)
+            if (n <= 0 || offset < 0)
                 return NotFound();
-            var result = Comments.GetNComments(idArticle, n, offset);
-            if (result.Length == 0)
-                return NotFound();
+            return Json(Articles.GetNArticles(n, offset));
+        }
+        [Route("find")]
+        [HttpGet]
+        public IActionResult GetArticleByName([FromQuery] string name = "")
+        {
+            if (name == "")
+                return Content("Write name to search");
+            var result = Articles.FindArticleByName(name);
+            if(result == null || result.Length == 0)
+                return Content("Cant find article with this name");
             return Json(result);
         }
         [HttpPost]
         [Authorize(Roles = Roles.Authorized)]
-        public IActionResult AddComment([FromBody] CommentDto comment)
+        public IActionResult AddArticle([FromBody] ArticleDto article)
         {
-            if (comment == null)
+            if (article == null)
                 return NotFound();
-            if (Comments.CheckIsEmpty(comment))
+            if(Articles.CheckIsEmpty(article))
                 return NotFound();
-            if (!Comments.AddComment(comment))
-                return NotFound("Invalid comment");
+            if (!Articles.AddArticle(article))
+                return NotFound("Invalid article");
             return new EmptyResult();
         }
         [HttpDelete]
@@ -36,9 +43,9 @@ namespace Coals_WebApp.Controllers
         [Route("Remove")]
         public IActionResult RemoveOwnArticle([FromQuery] int id = -1, int idUser = -1)
         {
-            if (id == -1 || idUser == -1)
+            if(id == -1 || idUser == -1)
                 return NotFound();
-            if (!Comments.RemoveByUser(id, idUser))
+            if (!Articles.RemoveByUser(id, idUser))
                 return NotFound();
             return new EmptyResult();
         }
@@ -49,10 +56,9 @@ namespace Coals_WebApp.Controllers
         {
             if (id == -1)
                 return NotFound();
-            if (!Comments.RemoveByModer(id))
+            if (!Articles.RemoveByModer(id))
                 return NotFound();
             return new EmptyResult();
         }
-
     }
 }
