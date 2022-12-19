@@ -1,6 +1,7 @@
 ﻿using Coals_WebApp.Models;
 using Coals_WebApp.Models.DTO;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Coals_WebApp.Controllers
@@ -10,28 +11,27 @@ namespace Coals_WebApp.Controllers
     {
         [HttpPost]
         [Route("Register")]
-        public IActionResult RegisterUserController([FromBody]RegisterDto candidate)
+        public IActionResult RegisterUser([FromBody]RegisterDto candidate)
         {
             if (Users.CheckIsEmpty(candidate))
-                return Content("Not all fields are filled");
+                return new ContentResult { StatusCode = 400, Content = "Not all fields are filled" };
             if (!Users.RegisterUser(candidate))
-                return Content("Invalid values of email or nickname");
-            return Ok();
+                return new ContentResult { StatusCode = 400, Content = "Invalid values of email or nickname" };
+            return new OkResult();
         }
         [HttpPost]
         [Route("Login")]
-        public IActionResult LoginUserController([FromBody] LoginDto candidate)
+        public IActionResult LoginUser([FromBody] LoginDto candidate)
         {
             if (Users.CheckIsEmpty(candidate))
-                return Content("Not all fields are filled");
+                return new ContentResult { StatusCode = 400, Content = "Not all fields are filled" };
             var result = Users.LoginUser(candidate);
             if (result[0] == Roles.Unauthorized)
-                return Unauthorized("Invalid email or password");
+                return new ContentResult { StatusCode = 401, Content = "Invalid email or password" };
             if (result[0] == Roles.Blocked)
-                return Unauthorized("You're blocked, try again later");//перенести проверки в users и возвращать просто json с содержимым
+                return new ContentResult { StatusCode = 401, Content = "You're blocked, try again later" };//перенести проверки в users и возвращать просто json с содержимым
             return Json(new {
-                access_token = result[0],
-                username = result[1]
+                access_token = result[0]
             });
         }
         [HttpGet]
@@ -48,28 +48,32 @@ namespace Coals_WebApp.Controllers
         [HttpDelete]
         [Authorize(Roles = Roles.Moderator)]
         [Route("Moder/Block")]
-        public IActionResult BlockUserController([FromQuery] int userId = -1, int moderatorId = -1)
+        public IActionResult BlockUser([FromQuery] int userId = -1)
         {
-            if (userId == -1 || moderatorId == -1)
-                return Content("Not all fields are filled");
-            if (userId == moderatorId)
-                return Content("Can't block yourself");
-            if (!Users.BlockUser(userId, moderatorId))
-                return Content("Cant' block this user");
-            return new EmptyResult();
+            if (userId == -1)
+                return new ContentResult { StatusCode = 400, Content = "Not all fields are filled" };
+            if (!Users.BlockUser(userId))
+                return new ContentResult { StatusCode = 400, Content = "Cant' block this user" };
+            return new OkResult();
         }
         [HttpGet]
         [Authorize(Roles = Roles.Moderator)]
         [Route("Moder/Unblock")]
-        public IActionResult UnblockUserController([FromQuery] int userId = -1, int moderatorId = -1)
+        public IActionResult UnblockUser([FromQuery] int userId = -1)
         {
-            if (userId == -1 || moderatorId == -1)
-                return Content("Not all fields are filled");
-            if (userId == moderatorId)
-                return Content("Can't unblock yourself");
-            if (!Users.UnblockUser(userId, moderatorId))
-                return Content("Cant' unblock this user");
-            return new EmptyResult();
+            if (userId == -1)
+                return new ContentResult { StatusCode = 400, Content = "Not all fields are filled" };
+            if (!Users.UnblockUser(userId))
+                return new ContentResult { StatusCode = 400, Content = "Cant' unblock this user" };
+            return new OkResult();
+        }
+        [HttpGet]
+        [Authorize(Roles=Roles.Moderator)]
+        [Route("Moder/Blocked")]
+        public IActionResult GetBlockedUsers()
+        {
+            var blocked = Users.BlockedUsers();
+            return Json(blocked);
         }
     }
 }

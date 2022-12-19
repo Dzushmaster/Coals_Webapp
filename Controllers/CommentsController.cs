@@ -12,24 +12,24 @@ namespace Coals_WebApp.Controllers
         [HttpGet]
         public IActionResult GetComments([FromQuery]int idArticle = 0, int n = 0, int offset = 0)
         {
-            if (idArticle <= 0 || n <= 0 || offset < 0)
-                return NotFound();
-            var result = Comments.GetNComments(idArticle, n, offset);
-            if (result.Length == 0)
-                return NotFound();
+            if (idArticle <= 0 || n < 0 || offset < 0)
+                return new NotFoundResult();
+            var result = Comments.GetAllComments(idArticle);
             return Json(result);
         }
         [HttpPost]
-        [Authorize(Roles = Roles.Authorized)]
+        [Route("add")]
+        [Authorize(Roles = $"{Roles.Authorized}, {Roles.Moderator}")]
         public IActionResult AddComment([FromBody] CommentDto comment)
         {
             if (comment == null)
-                return NotFound();
+                return new ContentResult { StatusCode = 400, Content = "Comment is empty"};
             if (Comments.CheckIsEmpty(comment))
-                return NotFound();
-            if (!Comments.AddComment(comment))
-                return NotFound("Invalid comment");
-            return new EmptyResult();
+                return new ContentResult { StatusCode = 400, Content = "Not all fields are filled" };
+            uint id = 0;
+            if ((id = Comments.AddComment(comment, out string error)) == 0)
+                return new ContentResult { StatusCode = 400, Content = error };
+            return Json(id);
         }
         [HttpDelete]
         [Authorize(Roles = $"{Roles.Authorized}, {Roles.Moderator}")]
@@ -37,10 +37,10 @@ namespace Coals_WebApp.Controllers
         public IActionResult RemoveOwnArticle([FromQuery] int id = -1, int idUser = -1)
         {
             if (id == -1 || idUser == -1)
-                return NotFound();
+                return new ContentResult { StatusCode = 400, Content = "Not all fields are filled" };
             if (!Comments.RemoveByUser(id, idUser))
-                return NotFound();
-            return new EmptyResult();
+                return new ContentResult { StatusCode = 404, Content = "Can't remove this comment" };
+            return new OkResult();
         }
         [HttpDelete]
         [Authorize(Roles = Roles.Moderator)]
@@ -48,11 +48,10 @@ namespace Coals_WebApp.Controllers
         public IActionResult RemoveByModerator([FromQuery] int id)
         {
             if (id == -1)
-                return NotFound();
+                return new ContentResult { StatusCode = 400, Content = "Not all fields are filled" };
             if (!Comments.RemoveByModer(id))
-                return NotFound();
-            return new EmptyResult();
+                return new ContentResult { StatusCode = 404, Content = "Can't remove this comment" };
+            return new OkResult();
         }
-
     }
 }

@@ -1,10 +1,10 @@
-using Coals_WebApp.Models;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
+using React.AspNet;
+using JavaScriptEngineSwitcher.Extensions.MsDependencyInjection;
+using JavaScriptEngineSwitcher.V8;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 
 namespace Coals_WebApp
 {
@@ -14,6 +14,16 @@ namespace Coals_WebApp
         {
             var builder = WebApplication.CreateBuilder(args);
             // Add services to the container.
+            builder.Services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(
+                                  policy =>
+                                  {
+                                      policy.WithOrigins("http://localhost:3000")
+                                      .AllowAnyHeader()
+                                      .AllowAnyMethod(); // add the allowed origins
+                                  });
+            });
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters()
@@ -27,8 +37,14 @@ namespace Coals_WebApp
                     ValidateIssuerSigningKey = true
                 };
             });
+
+
             builder.Services.AddAuthorization();
             builder.Services.AddControllersWithViews();
+            builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            builder.Services.AddReact();
+            builder.Services.AddJsEngineSwitcher(options => options.DefaultEngineName = V8JsEngine.EngineName).AddV8();
+
             var app = builder.Build();
 
             app.UseAuthentication();
@@ -38,10 +54,17 @@ namespace Coals_WebApp
             {
                 app.UseExceptionHandler("/Home/Error");
             }
+            
+
+            app.UseReact(config =>
+            {
+
+            });
             app.UseStaticFiles();
             
             app.UseRouting();
 
+            app.UseCors();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>

@@ -6,9 +6,10 @@ namespace Coals_WebApp.Controllers
 {
     public class HomeController : Controller
     {
+        [Route("/")]
         public IActionResult Index()
         {
-            return Ok();
+            return View();
         }
 
     }

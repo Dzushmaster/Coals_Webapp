@@ -13,7 +13,10 @@ namespace Coals_WebApp.Models
         public string? Email { get; set; }
         public string? Password { get; set; }
         public string? Role { get; set; }
-        //TODO: change true false to return error
+        
+        public static Users[] BlockedUsers() => AppDbContext.GetInstance().users.Where
+            (user => user.Role == Roles.Blocked).ToArray();
+        
         private static bool FindUserToRegister(RegisterDto candidate)
         {
             return AppDbContext.GetInstance().users.FirstOrDefault(user =>
@@ -31,7 +34,6 @@ namespace Coals_WebApp.Models
             return candidate.Email == string.Empty ||
                 candidate.Password == string.Empty;
         }
-        //TODO: change true false to return error
         public static bool RegisterUser(RegisterDto newUser)
         {
             if (FindUserToRegister(newUser))
@@ -47,7 +49,6 @@ namespace Coals_WebApp.Models
             instanse.SaveChangesAsync();
             return true;
         }
-        //TODO: change true false to return error
         public static string[] LoginUser(LoginDto loginUser)
         {
             AppDbContext dbContext = AppDbContext.GetInstance();
@@ -56,10 +57,9 @@ namespace Coals_WebApp.Models
                 return new string[] {Roles.Unauthorized};
             else if (user.Role == Roles.Blocked)
                 return new string[] { Roles.Blocked };
-            return GenerateToken(user.Nickname, user.Role);
+            return GenerateToken(user.Nickname, user.Role, user.Id);
         }
         //TODO: remove change role to unauthorized
-        //TODO: change true false to return error
         public static bool Logout(int id)
         {
             AppDbContext dbContext = AppDbContext.GetInstance();
@@ -70,34 +70,30 @@ namespace Coals_WebApp.Models
             dbContext.SaveChangesAsync();
             return true;
         }
-        //TODO: change true false to return error
-        public static bool BlockUser(int userId, int moderatorId)
+        public static bool BlockUser(int userId)
         {
             AppDbContext dbContext = AppDbContext.GetInstance();
             var user = dbContext.users.FirstOrDefault(user => user.Id == userId);
-            var moderator = dbContext.users.FirstOrDefault(user => user.Id == moderatorId);
-            if (user == null || moderator == null || user.Role != Roles.Authorized || moderator.Role != Roles.Moderator)
+            if (user == null || user.Role != Roles.Authorized)
                 return false;
             user.Role = Roles.Blocked;
             dbContext.SaveChangesAsync();
             return true;
         }
-        //TODO: change true false to return error
-        public static bool UnblockUser(int userId, int moderatorId)
+        public static bool UnblockUser(int userId)
         {
             AppDbContext dbContext = AppDbContext.GetInstance();
             var Users = dbContext.users.AsQueryable();
             var user = Users.FirstOrDefault(user => user.Id == userId);
-            var moderator = Users.FirstOrDefault(user => user.Id == moderatorId);
-            if (user == null || moderator == null || user.Role != Roles.Blocked|| moderator.Role != Roles.Moderator)
+            if (user == null || user.Role != Roles.Blocked)
                 return false;
             user.Role = Roles.Authorized;
             dbContext.SaveChangesAsync();
             return true;
         }
-        private static string[] GenerateToken(string username, string role)
+        private static string[] GenerateToken(string username, string role, uint id)
         {
-            var claim = GetIdentity(username, role);
+            var claim = GetIdentity(username, role, id);
             var jwt = new JwtSecurityToken(
                 issuer: Program.AuthOptions.ISSUER,
                 audience: Program.AuthOptions.AUDIENCE,
@@ -108,12 +104,13 @@ namespace Coals_WebApp.Models
             var token = new JwtSecurityTokenHandler().WriteToken(jwt);
             return new string[] {token, claim.Name};
         }
-        private static ClaimsIdentity GetIdentity(string username, string role)
+        private static ClaimsIdentity GetIdentity(string username, string role, uint id)
         {
             var claims = new List<Claim>
             {
-                new Claim(ClaimsIdentity.DefaultNameClaimType, username),
-                new Claim(ClaimsIdentity.DefaultRoleClaimType, role)
+                new Claim("username", username),
+                new Claim("id", id.ToString()),
+                new Claim("role", role)
             };
             ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, "Token", ClaimsIdentity.DefaultNameClaimType, ClaimsIdentity.DefaultNameClaimType);
             return claimsIdentity;

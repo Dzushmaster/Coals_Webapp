@@ -1,4 +1,5 @@
 ﻿using Coals_WebApp.Models.DTO;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection.PortableExecutable;
@@ -13,29 +14,35 @@ namespace Coals_WebApp.Models
         public string? Name { get; set; }
         public string? TextArticle { get; set; }
         public DateTime DatetimePublish { get; set; }
-        //TODO: change true false to return error
-
+        public static Articles[] GetAllArticles() => AppDbContext.GetInstance().articles.ToArray();
         public static Articles[] GetNArticles(int count, int offset) => AppDbContext.GetInstance().articles.Skip(offset).Take(count).ToArray();
-        //TODO: change true false to return error
-
         public static Articles[] FindArticleByName(string name) => AppDbContext.GetInstance().articles.Where(n => n.Name.Contains(name)).ToArray();
-
+        public static Articles[] FindArticleById(int id) => AppDbContext.GetInstance().articles.Where(n => n.Id == id).ToArray();
         public static bool CheckIsEmpty(ArticleDto article) =>
             article.IdUser == 0 ||
             article.Name == String.Empty ||
             article.TextArticle == String.Empty ||
             article.DatePublish == String.Empty;
-        //TODO: change true false to return error
-        public static bool AddArticle(ArticleDto dto)
+        public static bool AddArticle(ArticleDto dto, out string error)
         {
+            error = "";
             if (!DateTime.TryParse(dto.DatePublish, out DateTime date))
+            {
+                error = "Invalid date format";
                 return false;
+            }
             var dbContext = AppDbContext.GetInstance();
-            if (!dbContext.users.Any(user => user.Id == dto.IdUser && 
+                if (!dbContext.users.Any(user => user.Id == dto.IdUser &&
                 (user.Role == Roles.Authorized || user.Role == Roles.Moderator)))
+            {
+                error = "This user can't add article";
                 return false;
+            }
             if (dbContext.articles.Any(article => dto.Name == article.Name))
+            {
+                error = "The name of article has already used";
                 return false;
+            }
             dbContext.Add(new Articles
             {
                 IdUser = dto.IdUser,
@@ -46,7 +53,6 @@ namespace Coals_WebApp.Models
             dbContext.SaveChanges();
             return true;
         }
-        //TODO: change true false to return error
         public static bool RemoveByUser(int id, int idUser)
         {
             var dbContext = AppDbContext.GetInstance();
@@ -58,7 +64,6 @@ namespace Coals_WebApp.Models
             dbContext.SaveChanges();
             return true;
         }
-        //TODO: change true false to return error
         public static bool RemoveByModer(int id)
         {
             var dbContext = AppDbContext.GetInstance();

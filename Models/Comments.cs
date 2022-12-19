@@ -1,4 +1,5 @@
 ﻿using Coals_WebApp.Models.DTO;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 namespace Coals_WebApp.Models
 {
@@ -9,7 +10,8 @@ namespace Coals_WebApp.Models
         public uint IdUser { get; set; }
         public string? TextComment { get; set; }
         public DateTime DatetimePublish { get; set; }
-        //TODO: Add check idArticle
+        public static Comments[] GetAllComments(int idArticle) => 
+            AppDbContext.GetInstance().comments.Where(comm => comm.IdArticle == idArticle).ToArray();
         public static Comments[] GetNComments(int idArticle, int n, int offset) => 
             AppDbContext.GetInstance().comments.Where(comm => comm.IdArticle == idArticle).
             Skip(offset).Take(n).ToArray();
@@ -18,17 +20,26 @@ namespace Coals_WebApp.Models
             dto.IdUser == 0 ||
             dto.TextComment == String.Empty ||
             dto.DatePublish == String.Empty;
-        //TODO: change true false to return error
-        public static bool AddComment(CommentDto dto)
+        public static uint AddComment(CommentDto dto, out string error)
         {
+            error = "";
             if (!DateTime.TryParse(dto.DatePublish, out DateTime date))
-                return false;
+            {
+                error = "Invalid date format";
+                return UInt32.MinValue;
+            }
             var dbContext = AppDbContext.GetInstance();
             if (!dbContext.users.Any(user => user.Id == dto.IdUser &&
                 (user.Role == Roles.Authorized || user.Role == Roles.Moderator)))
-                return false;
+            {
+                error = "This user can't comment this article";
+                return UInt32.MinValue;
+            }
             if (!dbContext.articles.Any(article => article.Id == dto.IdArticle))
-                return false;
+            {
+                error = "Can't find this article";
+                return UInt32.MinValue;
+            }
             dbContext.Add(new Comments
             {
                 IdArticle = dto.IdArticle,
@@ -37,9 +48,13 @@ namespace Coals_WebApp.Models
                 DatetimePublish = date
             });
             dbContext.SaveChanges();
-            return true;
+            var id = dbContext.comments.FirstOrDefault(
+                comm => comm.IdArticle == dto.IdArticle &&
+                comm.IdUser == dto.IdUser &&
+                comm.TextComment == dto.TextComment).Id;
+
+            return id;
         }
-        //TODO: change true false to return error
         public static bool RemoveByUser(int id, int idUser)
         {
             var dbContext = AppDbContext.GetInstance();
@@ -51,7 +66,6 @@ namespace Coals_WebApp.Models
             dbContext.SaveChanges();
             return true;
         }
-        //TODO: change true false to return error
         public static bool RemoveByModer(int id)
         {
             var dbContext = AppDbContext.GetInstance();
